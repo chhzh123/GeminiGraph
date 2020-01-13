@@ -164,12 +164,19 @@ public:
     assert( numa_available() != -1 );
     assert( sizeof(unsigned long) == 8 ); // assume unsigned long is 64-bit
 
+    #ifdef PRINT_DEBUG_MESSAGES
+    printf("# Sockets: %d\n",sockets);
+    #endif
     char nodestring[sockets*2+1];
     nodestring[0] = '0';
     for (int s_i=1;s_i<sockets;s_i++) {
       nodestring[s_i*2-1] = ',';
       nodestring[s_i*2] = '0'+s_i;
     }
+    nodestring[sockets*2-1] = '\0'; // Big bug here!
+    #ifdef PRINT_DEBUG_MESSAGES
+    printf("Node string: %s\n", nodestring);
+    #endif
     struct bitmask * nodemask = numa_parse_nodestring(nodestring);
     numa_set_interleave_mask(nodemask);
 
@@ -188,12 +195,12 @@ public:
       int s_i = get_socket_id(t_i);
       assert(numa_run_on_node(s_i)==0);
       #ifdef PRINT_DEBUG_MESSAGES
-      // printf("thread-%d bound to socket-%d\n", t_i, s_i);
+      printf("thread-%d bound to socket-%d\n", t_i, s_i);
       #endif
     }
     #ifdef PRINT_DEBUG_MESSAGES
-    // printf("threads=%d*%d\n", sockets, threads_per_socket);
-    // printf("interleave on %s\n", nodestring);
+    printf("threads=%d*%d\n", sockets, threads_per_socket);
+    printf("interleave on %s\n", nodestring);
     #endif
 
     MPI_Comm_rank(MPI_COMM_WORLD, &partition_id);
