@@ -51,4 +51,4 @@ else:
     with open("dataset/{}.in".format(outfile_name),"wb") as file:
         for edge in edges:
             file.write(struct.pack("<II",edge[0],edge[1])) # little-endian
-            file.write(struct.pack("<I",edge[2]))
+            file.write(struct.pack("<f",edge[2]))
