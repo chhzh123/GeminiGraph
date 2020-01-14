@@ -23,12 +23,14 @@ class BFS
 {
 public:
     BFS(int _label): label(_label){}
-    void compute(Graph<Empty> *graph, VertexId root)
+
+    template <typename M>
+    void compute(Graph<M> *graph, VertexId root)
     {
         double exec_time = 0;
         exec_time -= get_time();
 
-        VertexId *parent = graph->alloc_vertex_array<VertexId>();
+        VertexId *parent = graph->template alloc_vertex_array<VertexId>();
         VertexSubset *visited = graph->alloc_vertex_subset();
         VertexSubset *active_in = graph->alloc_vertex_subset();
         VertexSubset *active_out = graph->alloc_vertex_subset();
@@ -49,13 +51,13 @@ public:
                 printf("active(%d)>=%u\n", i_i, active_vertices);
             }
             active_out->clear();
-            active_vertices = graph->process_edges<VertexId, VertexId>(
+            active_vertices = graph->template process_edges<VertexId, VertexId>(
                 [&](VertexId src) {
                     graph->emit(src, src, label);
                 },
-                [&](VertexId src, VertexId msg, VertexAdjList<Empty> outgoing_adj) {
+                [&](VertexId src, VertexId msg, VertexAdjList<M> outgoing_adj) {
                     VertexId activated = 0;
-                    for (AdjUnit<Empty> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
+                    for (AdjUnit<M> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
                     {
                         VertexId dst = ptr->neighbour;
                         if (parent[dst] == graph->vertices && cas(&parent[dst], graph->vertices, src))
@@ -66,10 +68,10 @@ public:
                     }
                     return activated;
                 },
-                [&](VertexId dst, VertexAdjList<Empty> incoming_adj) {
+                [&](VertexId dst, VertexAdjList<M> incoming_adj) {
                     if (visited->get_bit(dst))
                         return;
-                    for (AdjUnit<Empty> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
+                    for (AdjUnit<M> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
                     {
                         VertexId src = ptr->neighbour;
                         if (active_in->get_bit(src))
@@ -88,7 +90,7 @@ public:
                     return 0;
                 },
                 active_in, visited, label);
-            active_vertices = graph->process_vertices<VertexId>(
+            active_vertices = graph->template process_vertices<VertexId>(
                 [&](VertexId vtx) {
                     visited->set_bit(vtx);
                     return 1;

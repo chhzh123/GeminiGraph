@@ -9,8 +9,7 @@
 void compute(Graph<Empty> *graph, VertexId root, int id)
 {
     auto bfs = BFS(id);
-    std::cout << root << std::endl;
-    bfs.compute(graph,root);
+    bfs.compute<Empty>(graph,root);
 }
 
 int main(int argc, char **argv)
