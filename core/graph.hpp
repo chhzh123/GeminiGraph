@@ -129,16 +129,14 @@ public:
   VertexId * compressed_outgoing_adj_vertices;
   CompressedAdjIndexUnit ** compressed_outgoing_adj_index; // CompressedAdjIndexUnit [sockets] [...+1]; numa-aware
 
-  ThreadState ** thread_state; // ThreadState* [threads]; numa-aware
-  ThreadState ** tuned_chunks_dense; // ThreadState [partitions][threads];
-  ThreadState ** tuned_chunks_sparse; // ThreadState [partitions][threads];
+  ThreadState **tuned_chunks_dense;  // ThreadState [partitions][threads];
+  ThreadState **tuned_chunks_sparse; // ThreadState [partitions][threads];
 
   size_t local_send_buffer_limit;
-  MessageBuffer ** local_send_buffer; // MessageBuffer* [threads]; numa-aware
 
-  int current_send_part_id;
-  MessageBuffer *** send_buffer; // MessageBuffer* [partitions] [sockets]; numa-aware
-  MessageBuffer *** recv_buffer; // MessageBuffer* [partitions] [sockets]; numa-aware
+  MessageBuffer** local_send_buffer_loc[8];
+  MessageBuffer*** send_buffer_loc[8];
+  int part_id_val[8];
 
   Graph() {
     threads = numa_num_configured_cpus();
@@ -182,14 +180,10 @@ public:
 
     omp_set_dynamic(0);
     omp_set_num_threads(threads);
-    thread_state = new ThreadState * [threads];
+
     local_send_buffer_limit = 16;
-    local_send_buffer = new MessageBuffer * [threads];
-    for (int t_i=0;t_i<threads;t_i++) {
-      thread_state[t_i] = (ThreadState*)numa_alloc_onnode( sizeof(ThreadState), get_socket_id(t_i));
-      local_send_buffer[t_i] = (MessageBuffer*)numa_alloc_onnode( sizeof(MessageBuffer), get_socket_id(t_i));
-      local_send_buffer[t_i]->init(get_socket_id(t_i));
-    }
+    // thread_init(); // decomposition
+
     #pragma omp parallel for
     for (int t_i=0;t_i<threads;t_i++) {
       int s_i = get_socket_id(t_i);
@@ -205,18 +199,6 @@ public:
 
     MPI_Comm_rank(MPI_COMM_WORLD, &partition_id);
     MPI_Comm_size(MPI_COMM_WORLD, &partitions);
-    send_buffer = new MessageBuffer ** [partitions];
-    recv_buffer = new MessageBuffer ** [partitions];
-    for (int i=0;i<partitions;i++) {
-      send_buffer[i] = new MessageBuffer * [sockets];
-      recv_buffer[i] = new MessageBuffer * [sockets];
-      for (int s_i=0;s_i<sockets;s_i++) {
-        send_buffer[i][s_i] = (MessageBuffer*)numa_alloc_onnode( sizeof(MessageBuffer), s_i);
-        send_buffer[i][s_i]->init(s_i);
-        recv_buffer[i][s_i] = (MessageBuffer*)numa_alloc_onnode( sizeof(MessageBuffer), s_i);
-        recv_buffer[i][s_i]->init(s_i);
-      }
-    }
 
     alpha = 8 * (partitions - 1);
 
@@ -1413,6 +1395,19 @@ public:
   // process vertices
   template<typename R>
   R process_vertices(std::function<R(VertexId)> process, Bitmap * active) {
+
+    ThreadState **thread_state; // ThreadState* [threads]; numa-aware
+    MessageBuffer **local_send_buffer; // MessageBuffer* [threads]; numa-aware
+
+    thread_state = new ThreadState *[threads];
+    local_send_buffer = new MessageBuffer *[threads];
+    for (int t_i = 0; t_i < threads; t_i++)
+    {
+      thread_state[t_i] = (ThreadState *)numa_alloc_onnode(sizeof(ThreadState), get_socket_id(t_i));
+      local_send_buffer[t_i] = (MessageBuffer *)numa_alloc_onnode(sizeof(MessageBuffer), get_socket_id(t_i));
+      local_send_buffer[t_i]->init(get_socket_id(t_i));
+    }
+
     double stream_time = 0;
     stream_time -= MPI_Wtime();
 
@@ -1475,30 +1470,70 @@ public:
     return global_reducer;
   }
 
-  template<typename M>
-  void flush_local_send_buffer(int t_i) {
-    int s_i = get_socket_id(t_i);
-    int pos = __sync_fetch_and_add(&send_buffer[current_send_part_id][s_i]->count, local_send_buffer[t_i]->count);
-    memcpy(send_buffer[current_send_part_id][s_i]->data + sizeof(MsgUnit<M>) * pos, local_send_buffer[t_i]->data, sizeof(MsgUnit<M>) * local_send_buffer[t_i]->count);
-    local_send_buffer[t_i]->count = 0;
-  }
+  // template<typename M>
+  // void flush_local_send_buffer(int t_i) {
+  //   int s_i = get_socket_id(t_i);
+  //   int pos = __sync_fetch_and_add(&send_buffer[current_send_part_id][s_i]->count, local_send_buffer[t_i]->count);
+  //   memcpy(send_buffer[current_send_part_id][s_i]->data + sizeof(MsgUnit<M>) * pos, local_send_buffer[t_i]->data, sizeof(MsgUnit<M>) * local_send_buffer[t_i]->count);
+  //   local_send_buffer[t_i]->count = 0;
+  // }
 
   // emit a message to a vertex's master (dense) / mirror (sparse)
   template<typename M>
-  void emit(VertexId vtx, M msg) {
+  void emit(VertexId vtx, M msg, int id = 0) {
     int t_i = omp_get_thread_num();
+    MessageBuffer** local_send_buffer = local_send_buffer_loc[id];
+    int current_send_part_id = part_id_val[id];
+
     MsgUnit<M> * buffer = (MsgUnit<M>*)local_send_buffer[t_i]->data;
     buffer[local_send_buffer[t_i]->count].vertex = vtx;
     buffer[local_send_buffer[t_i]->count].msg_data = msg;
     local_send_buffer[t_i]->count += 1;
     if (local_send_buffer[t_i]->count==local_send_buffer_limit) {
-      flush_local_send_buffer<M>(t_i);
+      // flush_local_send_buffer<M>(t_i);
+      int s_i = get_socket_id(t_i);
+      MessageBuffer*** send_buffer = send_buffer_loc[id];
+      int pos = __sync_fetch_and_add(&send_buffer[current_send_part_id][s_i]->count, local_send_buffer[t_i]->count);
+      memcpy(send_buffer[current_send_part_id][s_i]->data + sizeof(MsgUnit<M>) * pos, local_send_buffer[t_i]->data, sizeof(MsgUnit<M>) * local_send_buffer[t_i]->count);
+      local_send_buffer[t_i]->count = 0;
     }
   }
 
   // process edges
   template<typename R, typename M>
-  R process_edges(std::function<void(VertexId)> sparse_signal, std::function<R(VertexId, M, VertexAdjList<EdgeData>)> sparse_slot, std::function<void(VertexId, VertexAdjList<EdgeData>)> dense_signal, std::function<R(VertexId, M)> dense_slot, Bitmap * active, Bitmap * dense_selective = nullptr) {
+  R process_edges(std::function<void(VertexId)> sparse_signal, std::function<R(VertexId, M, VertexAdjList<EdgeData>)> sparse_slot, std::function<void(VertexId, VertexAdjList<EdgeData>)> dense_signal, std::function<R(VertexId, M)> dense_slot, Bitmap * active, Bitmap * dense_selective = nullptr, int id = 0) {
+    ThreadState **thread_state; // ThreadState* [threads]; numa-aware
+
+    MessageBuffer **local_send_buffer; // MessageBuffer* [threads]; numa-aware
+
+    int current_send_part_id;
+    MessageBuffer ***send_buffer; // MessageBuffer* [partitions] [sockets]; numa-aware
+    MessageBuffer ***recv_buffer; // MessageBuffer* [partitions] [sockets]; numa-aware
+
+    thread_state = new ThreadState *[threads];
+    local_send_buffer = new MessageBuffer *[threads];
+    for (int t_i = 0; t_i < threads; t_i++)
+    {
+      thread_state[t_i] = (ThreadState *)numa_alloc_onnode(sizeof(ThreadState), get_socket_id(t_i));
+      local_send_buffer[t_i] = (MessageBuffer *)numa_alloc_onnode(sizeof(MessageBuffer), get_socket_id(t_i));
+      local_send_buffer[t_i]->init(get_socket_id(t_i));
+    }
+
+    send_buffer = new MessageBuffer **[partitions];
+    recv_buffer = new MessageBuffer **[partitions];
+    for (int i = 0; i < partitions; i++)
+    {
+      send_buffer[i] = new MessageBuffer *[sockets];
+      recv_buffer[i] = new MessageBuffer *[sockets];
+      for (int s_i = 0; s_i < sockets; s_i++)
+      {
+        send_buffer[i][s_i] = (MessageBuffer *)numa_alloc_onnode(sizeof(MessageBuffer), s_i);
+        send_buffer[i][s_i]->init(s_i);
+        recv_buffer[i][s_i] = (MessageBuffer *)numa_alloc_onnode(sizeof(MessageBuffer), s_i);
+        recv_buffer[i][s_i]->init(s_i);
+      }
+    }
+
     double stream_time = 0;
     stream_time -= MPI_Wtime();
 
@@ -1551,6 +1586,9 @@ public:
         unsigned long word = active->data[WORD_OFFSET(v_i)];
         while (word != 0) {
           if (word & 1) {
+            local_send_buffer_loc[id] = local_send_buffer;
+            send_buffer_loc[id] = send_buffer;
+            part_id_val[id] = current_send_part_id;
             sparse_signal(v_i);
           }
           v_i++;
@@ -1559,7 +1597,11 @@ public:
       }
       #pragma omp parallel for
       for (int t_i=0;t_i<threads;t_i++) {
-        flush_local_send_buffer<M>(t_i);
+        // flush_local_send_buffer<M>(t_i);
+        int s_i = get_socket_id(t_i);
+        int pos = __sync_fetch_and_add(&send_buffer[current_send_part_id][s_i]->count, local_send_buffer[t_i]->count);
+        memcpy(send_buffer[current_send_part_id][s_i]->data + sizeof(MsgUnit<M>) * pos, local_send_buffer[t_i]->data, sizeof(MsgUnit<M>) * local_send_buffer[t_i]->count);
+        local_send_buffer[t_i]->count = 0;
       }
       recv_queue[recv_queue_size] = partition_id;
       recv_queue_mutex.lock();
@@ -1772,6 +1814,9 @@ public:
               end_p_v_i = final_p_v_i;
             }
             for (VertexId p_v_i = begin_p_v_i; p_v_i < end_p_v_i; p_v_i ++) {
+              local_send_buffer_loc[id] = local_send_buffer;
+              send_buffer_loc[id] = send_buffer;
+              part_id_val[id] = current_send_part_id;
               VertexId v_i = compressed_incoming_adj_index[s_i][p_v_i].vertex;
               dense_signal(v_i, VertexAdjList<EdgeData>(incoming_adj_list[s_i] + compressed_incoming_adj_index[s_i][p_v_i].index, incoming_adj_list[s_i] + compressed_incoming_adj_index[s_i][p_v_i+1].index));
             }
@@ -1788,6 +1833,8 @@ public:
                 end_p_v_i = thread_state[t_i]->end;
               }
               for (VertexId p_v_i = begin_p_v_i; p_v_i < end_p_v_i; p_v_i ++) {
+                local_send_buffer_loc[id] = local_send_buffer;
+                part_id_val[id] = current_send_part_id;
                 VertexId v_i = compressed_incoming_adj_index[s_i][p_v_i].vertex;
                 dense_signal(v_i, VertexAdjList<EdgeData>(incoming_adj_list[s_i] + compressed_incoming_adj_index[s_i][p_v_i].index, incoming_adj_list[s_i] + compressed_incoming_adj_index[s_i][p_v_i+1].index));
               }
@@ -1796,7 +1843,11 @@ public:
         }
         #pragma omp parallel for
         for (int t_i=0;t_i<threads;t_i++) {
-          flush_local_send_buffer<M>(t_i);
+          // flush_local_send_buffer<M>(t_i);
+          int s_i = get_socket_id(t_i);
+          int pos = __sync_fetch_and_add(&send_buffer[current_send_part_id][s_i]->count, local_send_buffer[t_i]->count);
+          memcpy(send_buffer[current_send_part_id][s_i]->data + sizeof(MsgUnit<M>) * pos, local_send_buffer[t_i]->data, sizeof(MsgUnit<M>) * local_send_buffer[t_i]->count);
+          local_send_buffer[t_i]->count = 0;
         }
         if (i!=partition_id) {
           send_queue[send_queue_size] = i;
