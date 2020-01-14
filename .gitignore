@@ -29,3 +29,5 @@
 *.app
 
 dataset
+.vscode
+Notes.md
