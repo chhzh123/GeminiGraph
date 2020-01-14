@@ -23,17 +23,19 @@ class CC
 {
 public:
     CC(int _id) : id(_id) {}
-    void compute(Graph<Empty> *graph)
+
+    template<typename M>
+    void compute(Graph<M> *graph)
     {
         double exec_time = 0;
         exec_time -= get_time();
 
-        VertexId *label = graph->alloc_vertex_array<VertexId>();
+        VertexId *label = graph->template alloc_vertex_array<VertexId>();
         VertexSubset *active_in = graph->alloc_vertex_subset();
         active_in->fill();
         VertexSubset *active_out = graph->alloc_vertex_subset();
 
-        VertexId active_vertices = graph->process_vertices<VertexId>(
+        VertexId active_vertices = graph->template process_vertices<VertexId>(
             [&](VertexId vtx) {
                 label[vtx] = vtx;
                 return 1;
@@ -47,13 +49,13 @@ public:
                 printf("active(%d)>=%u\n", i_i, active_vertices);
             }
             active_out->clear();
-            active_vertices = graph->process_edges<VertexId, VertexId>(
+            active_vertices = graph->template process_edges<VertexId, VertexId>(
                 [&](VertexId src) {
                     graph->emit(src, label[src], id);
                 },
-                [&](VertexId src, VertexId msg, VertexAdjList<Empty> outgoing_adj) {
+                [&](VertexId src, VertexId msg, VertexAdjList<M> outgoing_adj) {
                     VertexId activated = 0;
-                    for (AdjUnit<Empty> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
+                    for (AdjUnit<M> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
                     {
                         VertexId dst = ptr->neighbour;
                         if (msg < label[dst])
@@ -65,9 +67,9 @@ public:
                     }
                     return activated;
                 },
-                [&](VertexId dst, VertexAdjList<Empty> incoming_adj) {
+                [&](VertexId dst, VertexAdjList<M> incoming_adj) {
                     VertexId msg = dst;
-                    for (AdjUnit<Empty> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
+                    for (AdjUnit<M> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
                     {
                         VertexId src = ptr->neighbour;
                         if (label[src] < msg)
@@ -102,7 +104,7 @@ public:
         graph->gather_vertex_array(label, 0);
         if (graph->partition_id == 0)
         {
-            VertexId *count = graph->alloc_vertex_array<VertexId>();
+            VertexId *count = graph->template alloc_vertex_array<VertexId>();
             graph->fill_vertex_array(count, 0u);
             for (VertexId v_i = 0; v_i < graph->vertices; v_i++)
             {
