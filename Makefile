@@ -1,6 +1,6 @@
 ROOT_DIR= $(shell pwd)
 TARGETS= toolkits/bc toolkits/bfs toolkits/cc toolkits/pagerank toolkits/sssp
-CON_TARGETS= concurrent/mbfs
+CON_TARGETS= concurrent/mbfs concurrent/msssp
 MACROS=
 # MACROS= -D PRINT_DEBUG_MESSAGES
 
