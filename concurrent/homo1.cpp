@@ -4,19 +4,19 @@
 #include <iostream>
 
 #include "core/graph.hpp"
-#include "concurrent/sssp.hpp"
+#include "concurrent/cc.hpp"
 #include "concurrent/bfs.hpp"
 
-void computeBFS(Graph<Weight> *graph, VertexId root, int id) // remember to change to Weight
+void computeBFS(Graph<Empty> *graph, VertexId root, int id)
 {
     auto bfs = BFS(id);
-    bfs.compute<Weight>(graph, root);
+    bfs.compute<Empty>(graph, root);
 }
 
-void computeSSSP(Graph<Weight> *graph, VertexId root, int id)
+void computeCC(Graph<Empty> *graph, int id)
 {
-    auto sssp = SSSP(id);
-    sssp.compute(graph, root);
+    auto cc = CC(id);
+    cc.compute(graph);
 }
 
 int main(int argc, char **argv)
@@ -29,23 +29,23 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    Graph<Weight> *graph;
-    graph = new Graph<Weight>();
+    Graph<Empty> *graph;
+    graph = new Graph<Empty>();
     VertexId root = std::atoi(argv[3]);
     graph->load_directed(argv[1], std::atoi(argv[2]));
 
     std::thread bfsThreads[4];
-    std::thread ssspThreads[4];
+    std::thread ccThreads[4];
     for (int i = 0; i < 4; ++i)
     {
         bfsThreads[i] = std::thread(computeBFS, graph, root, 2*i);
-        ssspThreads[i] = std::thread(computeSSSP, graph, root, 2*i+1);
+        ccThreads[i] = std::thread(computeCC, graph, 2*i+1);
     }
 
     for (int i = 0; i < 4; ++i)
     {
         bfsThreads[i].join();
-        ssspThreads[i].join();
+        ccThreads[i].join();
     }
 
     delete graph;
