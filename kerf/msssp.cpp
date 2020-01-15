@@ -22,51 +22,47 @@ Copyright (c) 2014-2015 Xiaowei Zhu, Tsinghua University
 
 #include "core/graph.hpp"
 
-class VecVertexId
+typedef float Weight;
+
+class VecWeight
 {
 public:
-    VecVertexId() = default;
-    VecVertexId(const VertexId val)
+    VecWeight() = default;
+    VecWeight(const Weight val)
     {
         for (int i = 0; i < 8; ++i)
-            vertex_id[i] = val;
+            weight[i] = val;
     }
-    VecVertexId(const VecVertexId& other)
+    VecWeight(const VecWeight &other)
     {
         for (int i = 0; i < 8; ++i)
-            vertex_id[i] = other.vertex_id[i];
+            weight[i] = other.weight[i];
     }
-    VertexId vertex_id[8] = {0};
+    Weight weight[8] = {0};
 };
 
-void
-compute(Graph<Empty> *graph)
+void compute(Graph<Weight> *graph)
 {
     double exec_time = 0;
     exec_time -= get_time();
 
-    VertexId *parent[8];
-    VertexSubset *visited[8];
+    Weight *distance[8];
     VertexSubset *active_in[8];
     VertexSubset *active_out[8];
     VertexId active_vertices = 8;
     VertexSubset *common_active_in = graph->alloc_vertex_subset();
     VertexSubset *common_active_out = graph->alloc_vertex_subset();
-    VertexId root[8] = {91,182,273,364,455,546,637,728};
+    VertexId root[8] = {211, 422, 633, 844, 1055, 1266, 1477, 1688};
 
     for (int i = 0; i < 8; ++i)
     {
-        parent[i] = graph->alloc_vertex_array<VertexId>();
-        visited[i] = graph->alloc_vertex_subset();
+        distance[i] = graph->alloc_vertex_array<Weight>();
         active_in[i] = graph->alloc_vertex_subset();
         active_out[i] = graph->alloc_vertex_subset();
-
-        visited[i]->clear();
-        visited[i]->set_bit(root[i]);
         active_in[i]->clear();
         active_in[i]->set_bit(root[i]);
-        graph->fill_vertex_array(parent[i], graph->vertices); // -1
-        parent[i][root[i]] = root[i];
+        graph->fill_vertex_array(distance[i], (Weight)1e9); // initialization
+        distance[i][root[i]] = (Weight)0;
 
         common_active_in->set_bit(root[i]);
     }
@@ -75,7 +71,7 @@ compute(Graph<Empty> *graph)
     {
         if (graph->partition_id == 0)
         {
-            #ifdef PRINT_DEBUG_MESSAGES
+#ifdef PRINT_DEBUG_MESSAGES
             for (int i = 0; i < 8; ++i)
             {
                 int cnt = 0;
@@ -84,33 +80,39 @@ compute(Graph<Empty> *graph)
                         cnt++;
                 printf("active task %d >= %u\n", i, cnt);
             }
-            #endif
+#endif
             printf("active(%d)>=%u\n", i_i, active_vertices);
         }
         for (int i = 0; i < 8; ++i)
             active_out[i]->clear();
         common_active_out->clear();
-        active_vertices = graph->process_edges<VertexId, VecVertexId>(
+        active_vertices = graph->process_edges<VertexId, VecWeight>(
             [&](VertexId src) {
-                VecVertexId vecId(graph->vertices);
+                VecWeight vec((Weight)1e9);
                 for (int i = 0; i < 8; ++i)
                     if (active_in[i]->get_bit(src))
-                        vecId.vertex_id[i] = src;
-                // VecVertexId vecId(src);
-                graph->emit(src, vecId);
+                        vec.weight[i] = distance[i][src];
+                graph->emit(src, vec);
             },
-            [&](VertexId src, VecVertexId msg, VertexAdjList<Empty> outgoing_adj) {
+            [&](VertexId src, VecWeight msg, VertexAdjList<Weight> outgoing_adj) {
                 VertexId activated = 0;
-                for (AdjUnit<Empty> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
+                for (AdjUnit<Weight> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
                 {
                     VertexId dst = ptr->neighbour;
                     bool flag = false;
                     for (int i = 0; i < 8; ++i)
                     {
-                        if (active_in[i]->get_bit(src) && parent[i][dst] == graph->vertices && cas(&parent[i][dst], graph->vertices, msg.vertex_id[i])) // be careful!
+                        Weight relax_dist = msg.weight[i] + ptr->edge_data;
+                        if (active_in[i]->get_bit(src))
                         {
-                            active_out[i]->set_bit(dst);
-                            flag = true;
+                            if (relax_dist < distance[i][dst])
+                            {
+                                if (write_min(&distance[i][dst], relax_dist))
+                                {
+                                    active_out[i]->set_bit(dst);
+                                    flag = true;
+                                }
+                            }
                         }
                     }
                     if (flag)
@@ -121,48 +123,35 @@ compute(Graph<Empty> *graph)
                 }
                 return activated;
             },
-            [&](VertexId dst, VertexAdjList<Empty> incoming_adj) {
-                // advanced task filter
-                // int bit_mask = 0;
-                bool bit_mask[8] = {0};
-                int cnt = 0;
-                for (int i = 0; i < 8; ++i)
-                {
-                    if (parent[i][dst] != graph->vertices) //(visited[i]->get_bit(dst))
-                    {
-                        // return;
-                        // bit_mask &= 1 << i;
-                        bit_mask[i] = 1;
-                        cnt++;
-                    }
-                }
-                if (cnt == 8) return; // all visited
-                VecVertexId vecId(graph->vertices);
+            [&](VertexId dst, VertexAdjList<Weight> incoming_adj) {
                 bool flag = false;
-                for (AdjUnit<Empty> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
+                VecWeight msg(1e9);
+                for (AdjUnit<Weight> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
                 {
                     VertexId src = ptr->neighbour;
                     for (int i = 0; i < 8; ++i)
                     {
-                        if (!bit_mask[i] && active_in[i]->get_bit(src)) // dst not visited & src active
+                        // if (active_in->get_bit(src)) {
+                        Weight relax_dist = distance[i][src] + ptr->edge_data;
+                        if (relax_dist < msg.weight[i])
                         {
-                            vecId.vertex_id[i] = src;
-                            bit_mask[i] = 1;
+                            msg.weight[i] = relax_dist;
                             flag = true;
                         }
+                        // }
                     }
                 }
                 if (flag)
-                    graph->emit(dst, vecId);
+                    graph->emit(dst, msg);
             },
-            [&](VertexId dst, VecVertexId msg) {
+            [&](VertexId dst, VecWeight msg) {
                 bool flag = false;
                 for (int i = 0; i < 8; ++i)
                 {
-                    if (cas(&parent[i][dst], graph->vertices, msg.vertex_id[i]))
+                    if (msg.weight[i] < distance[i][dst])
                     {
+                        write_min(&distance[i][dst], msg.weight[i]);
                         active_out[i]->set_bit(dst);
-                        // return 1;
                         flag = true;
                     }
                 }
@@ -174,7 +163,7 @@ compute(Graph<Empty> *graph)
                 else
                     return 0;
             },
-            common_active_in, nullptr);
+            common_active_in);
         for (int i = 0; i < 8; ++i)
         {
             std::swap(active_in[i], active_out[i]);
@@ -190,24 +179,22 @@ compute(Graph<Empty> *graph)
 
     for (int i = 0; i < 8; ++i)
     {
-        graph->gather_vertex_array(parent[i], 0);
+        graph->gather_vertex_array(distance[i], 0);
         if (graph->partition_id == 0)
         {
-            VertexId found_vertices = 0;
+            VertexId max_v_i = root[i];
             for (VertexId v_i = 0; v_i < graph->vertices; v_i++)
             {
-                if (parent[i][v_i] < graph->vertices)
+                if (distance[i][v_i] < 1e9 && distance[i][v_i] > distance[i][max_v_i])
                 {
-                    found_vertices += 1;
+                    max_v_i = v_i;
                 }
             }
-            printf("found_vertices = %u\n", found_vertices);
+            printf("distance[%u]=%f\n", max_v_i, distance[i][max_v_i]);
         }
-
-        graph->dealloc_vertex_array(parent);
+        graph->dealloc_vertex_array(distance[i]);
         delete active_in[i];
         delete active_out[i];
-        delete visited[i];
     }
     delete common_active_in;
     delete common_active_out;
@@ -219,12 +206,12 @@ int main(int argc, char **argv)
 
     if (argc < 3)
     {
-        printf("mbfs [file] [vertices]\n");
+        printf("sssp [file] [vertices]\n");
         exit(-1);
     }
 
-    Graph<Empty> *graph;
-    graph = new Graph<Empty>();
+    Graph<Weight> *graph;
+    graph = new Graph<Weight>();
     graph->load_directed(argv[1], std::atoi(argv[2]));
 
     compute(graph);

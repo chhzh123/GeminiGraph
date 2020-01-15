@@ -1,7 +1,7 @@
 ROOT_DIR= $(shell pwd)
 TARGETS= toolkits/bc toolkits/bfs toolkits/cc toolkits/pagerank toolkits/sssp
 CON_TARGETS= concurrent/homo1 concurrent/homo2 concurrent/heter concurrent/mbfs concurrent/msssp
-KERF_TARGETS= kerf/mbfs
+KERF_TARGETS= kerf/mbfs kerf/msssp
 MACROS=
 # MACROS= -D PRINT_DEBUG_MESSAGES
 
@@ -90,6 +90,27 @@ msssp:
 	$(TIME) "./concurrent/msssp $(DATASETW) $(SIZE)"
 	$(PERF) "./concurrent/msssp $(DATASETW) $(SIZE)"
 
+expkerf: build homo1kerf homo2kerf heterkerf mbfskerf mssspkerf
+
+homo1kerf:
+	$(TIME) "./kerf/homo1 $(DATASET) $(SIZE)"
+	$(PERF) "./kerf/homo1 $(DATASET) $(SIZE)"
+
+homo2kerf:
+	$(TIME) "./kerf/homo2 $(DATASETW) $(SIZE)"
+	$(PERF) "./kerf/homo2 $(DATASETW) $(SIZE)"
+
+heterkerf:
+	$(TIME) "./kerf/heter $(DATASETW) $(SIZE)"
+	$(PERF) "./kerf/heter $(DATASETW) $(SIZE)"
+
+mbfskerf:
+	$(TIME) "./kerf/mbfs $(DATASET) $(SIZE)"
+	$(PERF) "./kerf/mbfs $(DATASET) $(SIZE)"
+
+mssspkerf:
+	$(TIME) "./kerf/msssp $(DATASETW) $(SIZE)"
+	$(PERF) "./kerf/msssp $(DATASETW) $(SIZE)"
 
 expge: build homo1ge homo2ge heterge mbfsge mssspge
 
@@ -158,4 +179,4 @@ gendata:
 
 .PHONY: clean
 clean:
-	rm -f $(TARGETS)
+	-rm -f $(TARGETS) $(CON_TARGETS) $(KERF_TARGETS)
