@@ -134,7 +134,7 @@ mbfsge:
 	./toolkits/bfs $(DATASET) $(SIZE) 455 & \
 	./toolkits/bfs $(DATASET) $(SIZE) 546 & \
 	./toolkits/bfs $(DATASET) $(SIZE) 637 & \
-	./toolkits/bfs $(DATASET) $(SIZE) 828 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 728 & \
 	wait'
 
 mssspge:

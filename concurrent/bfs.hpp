@@ -89,7 +89,7 @@ public:
                     }
                     return 0;
                 },
-                active_in, visited, label);
+                active_in, nullptr, label);
             active_vertices = graph->template process_vertices<VertexId>(
                 [&](VertexId vtx) {
                     visited->set_bit(vtx);
