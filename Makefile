@@ -1,7 +1,7 @@
 ROOT_DIR= $(shell pwd)
 TARGETS= toolkits/bc toolkits/bfs toolkits/cc toolkits/pagerank toolkits/sssp
 CON_TARGETS= concurrent/homo1 concurrent/homo2 concurrent/heter concurrent/mbfs concurrent/msssp
-KERF_TARGETS= kerf/mbfs kerf/msssp
+KERF_TARGETS= kerf/homo1 kerf/homo2 kerf/heter kerf/mbfs kerf/msssp
 MACROS=
 # MACROS= -D PRINT_DEBUG_MESSAGES
 
