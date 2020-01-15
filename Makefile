@@ -1,6 +1,7 @@
 ROOT_DIR= $(shell pwd)
 TARGETS= toolkits/bc toolkits/bfs toolkits/cc toolkits/pagerank toolkits/sssp
 CON_TARGETS= concurrent/homo1 concurrent/homo2 concurrent/heter concurrent/mbfs concurrent/msssp
+KERF_TARGETS= kerf/mbfs
 MACROS=
 # MACROS= -D PRINT_DEBUG_MESSAGES
 
@@ -47,14 +48,19 @@ DATASET = $(DATASET_PATH)/$(DATA)_J_5_100.in
 DATASETW = $(DATASET_PATH)/$(DATA)_WJ_5_100.in
 endif
 
-all: $(TARGETS) $(CON_TARGETS)
+all: $(TARGETS) $(CON_TARGETS) $(KERF_TARGETS)
 
 concurrent: $(CON_TARGETS)
+
+kerf: $(KERF_TARGETS)
 
 toolkits/%: toolkits/%.cpp $(HEADERS)
 	$(MPICXX) $(CXXFLAGS) -o $@ $< $(SYSLIBS)
 
 concurrent/%: concurrent/%.cpp $(HEADERS)
+	$(MPICXX) $(CXXFLAGS) -o $@ $< $(SYSLIBS)
+
+kerf/%: kerf/%.cpp $(HEADERS)
 	$(MPICXX) $(CXXFLAGS) -o $@ $< $(SYSLIBS)
 
 TIME = /usr/bin/time -v -o $(PROFILE_PATH)/$(DATA)/$@.time sh -c
