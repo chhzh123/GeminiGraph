@@ -23,22 +23,21 @@ int main(int argc, char **argv)
 {
     MPI_Instance mpi(&argc, &argv);
 
-    if (argc < 4)
+    if (argc < 3)
     {
-        printf("homo1 [file] [vertices] [root]\n");
+        printf("homo1 [file] [vertices]\n");
         exit(-1);
     }
 
     Graph<Empty> *graph;
     graph = new Graph<Empty>();
-    VertexId root = std::atoi(argv[3]);
     graph->load_directed(argv[1], std::atoi(argv[2]));
 
     std::thread bfsThreads[4];
     std::thread ccThreads[4];
     for (int i = 0; i < 4; ++i)
     {
-        bfsThreads[i] = std::thread(computeBFS, graph, root, 2*i);
+        bfsThreads[i] = std::thread(computeBFS, graph, 10*i, 2*i);
         ccThreads[i] = std::thread(computeCC, graph, 2*i+1);
     }
 

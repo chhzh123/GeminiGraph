@@ -16,20 +16,19 @@ int main(int argc, char **argv)
 {
     MPI_Instance mpi(&argc, &argv);
 
-    if (argc < 4)
+    if (argc < 3)
     {
-        printf("bfs [file] [vertices] [root]\n");
+        printf("bfs [file] [vertices]\n");
         exit(-1);
     }
 
     Graph<Empty> *graph;
     graph = new Graph<Empty>();
-    VertexId root = std::atoi(argv[3]);
     graph->load_directed(argv[1], std::atoi(argv[2]));
 
     std::thread myThreads[8];
     for (int i = 0; i < 8; ++i) {
-        myThreads[i] = std::thread(compute, graph, root, i);
+        myThreads[i] = std::thread(compute, graph, 10 * i, i);
     }
 
     for (int i = 0; i < 8; ++i) {

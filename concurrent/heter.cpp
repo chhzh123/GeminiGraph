@@ -12,7 +12,7 @@
 void computePR(Graph<Weight> *graph, int id) // remember to change to Weight
 {
     auto pr = PageRank(id);
-    pr.compute<Weight>(graph, 10);
+    pr.compute<Weight>(graph, 100);
 }
 
 void computeSSSP(Graph<Weight> *graph, VertexId root, int id)
@@ -37,15 +37,14 @@ int main(int argc, char **argv)
 {
     MPI_Instance mpi(&argc, &argv);
 
-    if (argc < 4)
+    if (argc < 3)
     {
-        printf("heter [file] [vertices] [root]\n");
+        printf("heter [file] [vertices]\n");
         exit(-1);
     }
 
     Graph<Weight> *graph;
     graph = new Graph<Weight>();
-    VertexId root = std::atoi(argv[3]);
     graph->load_directed(argv[1], std::atoi(argv[2]));
 
     std::thread prThreads[2];
@@ -54,10 +53,10 @@ int main(int argc, char **argv)
     std::thread ccThreads[2];
     for (int i = 0; i < 2; ++i)
     {
-        bfsThreads[i] = std::thread(computeBFS, graph, root, 4 * i);
-        ssspThreads[i] = std::thread(computeSSSP, graph, root, 4 * i + 1);
-        prThreads[i] = std::thread(computePR, graph, 4 * i + 2);
+        bfsThreads[i] = std::thread(computeBFS, graph, 2 * i, 4 * i);
         ccThreads[i] = std::thread(computeCC, graph, 4 * i + 3);
+        prThreads[i] = std::thread(computePR, graph, 4 * i + 2);
+        ssspThreads[i] = std::thread(computeSSSP, graph, 2 * i + 1, 4 * i + 1);
     }
 
     for (int i = 0; i < 2; ++i)
