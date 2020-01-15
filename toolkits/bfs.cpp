@@ -122,9 +122,9 @@ int main(int argc, char ** argv) {
   graph->load_directed(argv[1], std::atoi(argv[2]));
 
   compute(graph, root);
-  for (int run=0;run<5;run++) {
-    compute(graph, root);
-  }
+  // for (int run=0;run<5;run++) {
+  //   compute(graph, root);
+  // }
 
   delete graph;
   return 0;

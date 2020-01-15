@@ -102,7 +102,7 @@ void compute(Graph<Empty> * graph) {
     }
     printf("components = %u\n", components);
   }
-  
+
   graph->dealloc_vertex_array(label);
   delete active_in;
   delete active_out;
@@ -121,9 +121,9 @@ int main(int argc, char ** argv) {
   graph->load_undirected_from_directed(argv[1], std::atoi(argv[2]));
 
   compute(graph);
-  for (int run=0;run<5;run++) {
-    compute(graph);
-  }
+  // for (int run=0;run<5;run++) {
+  //   compute(graph);
+  // }
 
   delete graph;
   return 0;

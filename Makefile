@@ -130,20 +130,20 @@ homo2ge:
 	./toolkits/sssp $(DATASETW) $(SIZE) 144 & \
 	./toolkits/sssp $(DATASETW) $(SIZE) 215 & \
 	./toolkits/sssp $(DATASETW) $(SIZE) 286 & \
-	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
-	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
-	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
-	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 10 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 10 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 10 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 10 & \
 	wait'
 
 heterge:
 	$(TIME) './toolkits/bfs $(DATASET) $(SIZE) 71 & \
 	./toolkits/cc $(DATASET) $(SIZE)  & \
-	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 10 & \
 	./toolkits/sssp $(DATASETW) $(SIZE) 102 & \
 	./toolkits/bfs $(DATASET) $(SIZE) 142 & \
 	./toolkits/cc $(DATASET) $(SIZE)  & \
-	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 10 & \
 	./toolkits/sssp $(DATASETW) $(SIZE) 203 & \
 	wait'
 

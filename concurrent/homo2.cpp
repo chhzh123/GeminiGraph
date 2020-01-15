@@ -10,7 +10,7 @@
 void computePR(Graph<Weight> *graph, int id) // remember to change to Weight
 {
     auto pr = PageRank(id);
-    pr.compute<Weight>(graph, 100);
+    pr.compute<Weight>(graph, 10);
 }
 
 void computeSSSP(Graph<Weight> *graph, VertexId root, int id)

@@ -46,7 +46,7 @@ void compute(Graph<Empty> *graph)
 
     // the first 4 are BFSs
     VertexId *parent[8];
-    VertexId root[4] = {10,20,30,40};
+    VertexId root[4] = {10, 20, 30, 40};
     VertexId active_vertices = 4;
     // the latter 4 are CCs
     VertexId *label[4];
@@ -55,11 +55,12 @@ void compute(Graph<Empty> *graph)
     VertexSubset *common_active_in = graph->alloc_vertex_subset();
     VertexSubset *common_active_out = graph->alloc_vertex_subset();
 
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 8; ++i)
+    {
         if (i < 4)
             parent[i] = graph->alloc_vertex_array<VertexId>();
         else
-            label[i-4] = graph->alloc_vertex_array<VertexId>();
+            label[i - 4] = graph->alloc_vertex_array<VertexId>();
         active_in[i] = graph->alloc_vertex_subset();
         active_out[i] = graph->alloc_vertex_subset();
         if (i < 4)
@@ -69,7 +70,8 @@ void compute(Graph<Empty> *graph)
             graph->fill_vertex_array(parent[i], graph->vertices);
             parent[i][root[i]] = root[i];
             common_active_in->set_bit(root[i]);
-        } else
+        }
+        else
         {
             active_in[i]->fill();
             common_active_in->fill();
@@ -111,7 +113,7 @@ void compute(Graph<Empty> *graph)
                 VecMix vec;
                 for (int i = 0; i < 8; ++i)
                     if (active_in[i]->get_bit(src))
-                        vec.data[i] = (i < 4 ? src : label[i-4][src]);
+                        vec.data[i] = (i < 4 ? src : label[i - 4][src]);
                 graph->emit(src, vec);
             },
             [&](VertexId src, VecMix msg, VertexAdjList<Empty> outgoing_adj) {
@@ -130,10 +132,10 @@ void compute(Graph<Empty> *graph)
                     }
                     for (int i = 0; i < 4; ++i) // cc
                     {
-                        if (active_in[i+4]->get_bit(src) && msg.data[i+4] < label[i][dst])
+                        if (active_in[i + 4]->get_bit(src) && msg.data[i + 4] < label[i][dst])
                         {
-                            write_min(&label[i][dst], msg.data[i]);
-                            active_out[i]->set_bit(dst);
+                            write_min(&label[i][dst], msg.data[i + 4]);
+                            active_out[i + 4]->set_bit(dst);
                             flag = true;
                         }
                     }
@@ -160,7 +162,7 @@ void compute(Graph<Empty> *graph)
                     }
                 }
 
-                VecMix msg;
+                VecMix msg(graph->vertices);
                 for (int i = 4; i < 8; ++i)
                     msg.data[i] = dst;
                 bool flag = false;
@@ -179,9 +181,9 @@ void compute(Graph<Empty> *graph)
                     }
                     for (int i = 4; i < 8; ++i) // cc
                     {
-                        if (label[i-4][src] < msg.data[i] && active_in[i]->get_bit(src))
+                        if (label[i - 4][src] < msg.data[i] && active_in[i]->get_bit(src))
                         {
-                            msg.data[i] = label[i-4][src];
+                            msg.data[i] = label[i - 4][src];
                             flag = true;
                         }
                     }
@@ -202,9 +204,9 @@ void compute(Graph<Empty> *graph)
                 }
                 for (int i = 4; i < 8; ++i)
                 {
-                    if (msg.data[i] < label[i-4][dst])
+                    if (msg.data[i] < label[i - 4][dst])
                     {
-                        write_min(&label[i-4][dst], msg.data[i]);
+                        write_min(&label[i - 4][dst], msg.data[i]);
                         active_out[i]->set_bit(dst);
                         flag = true;
                     }
@@ -252,14 +254,14 @@ void compute(Graph<Empty> *graph)
     }
     for (int i = 4; i < 8; ++i)
     {
-        graph->gather_vertex_array(label[i], 0);
+        graph->gather_vertex_array(label[i - 4], 0);
         if (graph->partition_id == 0)
         {
             VertexId *count = graph->alloc_vertex_array<VertexId>();
             graph->fill_vertex_array(count, 0u);
             for (VertexId v_i = 0; v_i < graph->vertices; v_i++)
             {
-                count[label[i-4][v_i]] += 1;
+                count[label[i - 4][v_i]] += 1;
             }
             VertexId components = 0;
             for (VertexId v_i = 0; v_i < graph->vertices; v_i++)
@@ -271,8 +273,9 @@ void compute(Graph<Empty> *graph)
             }
             printf("components = %u\n", components);
         }
-        graph->dealloc_vertex_array(label[i-4]);
+        graph->dealloc_vertex_array(label[i - 4]);
     }
+
     for (int i = 0; i < 8; ++i)
     {
         delete active_in[i];
