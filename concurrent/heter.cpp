@@ -53,10 +53,10 @@ int main(int argc, char **argv)
     std::thread ccThreads[2];
     for (int i = 0; i < 2; ++i)
     {
-        bfsThreads[i] = std::thread(computeBFS, graph, 2 * i, 4 * i);
+        bfsThreads[i] = std::thread(computeBFS, graph, 71 * (i+1), 4 * i);
         ccThreads[i] = std::thread(computeCC, graph, 4 * i + 3);
         prThreads[i] = std::thread(computePR, graph, 4 * i + 2);
-        ssspThreads[i] = std::thread(computeSSSP, graph, 2 * i + 1, 4 * i + 1);
+        ssspThreads[i] = std::thread(computeSSSP, graph, 101 * (i+1) + 1, 4 * i + 1);
     }
 
     for (int i = 0; i < 2; ++i)

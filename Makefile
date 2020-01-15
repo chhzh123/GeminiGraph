@@ -66,7 +66,7 @@ kerf/%: kerf/%.cpp $(HEADERS)
 TIME = /usr/bin/time -v -o $(PROFILE_PATH)/$(DATA)/$@.time sh -c
 PERF = perf stat -d -o $(PROFILE_PATH)/$(DATA)/$@.perf sh -c
 
-exp: build homo1 homo2 heter mbfs msssp
+expcon: build homo1 homo2 heter mbfs msssp
 build:
 	-mkdir -p $(PROFILE_PATH)/$(DATA)
 
@@ -89,6 +89,64 @@ mbfs:
 msssp:
 	$(TIME) "./concurrent/msssp $(DATASETW) $(SIZE)"
 	$(PERF) "./concurrent/msssp $(DATASETW) $(SIZE)"
+
+
+expge: build homo1ge homo2ge heterge mbfsge mssspge
+
+homo1ge:
+	$(TIME) './toolkits/bfs $(DATASET) $(SIZE) 10 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 20 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 30 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 40 & \
+	./toolkits/cc $(DATASET) $(SIZE)  & \
+	./toolkits/cc $(DATASET) $(SIZE)  & \
+	./toolkits/cc $(DATASET) $(SIZE)  & \
+	./toolkits/cc $(DATASET) $(SIZE)  & \
+	wait'
+
+homo2ge:
+	$(TIME) './toolkits/sssp $(DATASETW) $(SIZE) 73 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 144 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 215 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 286 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	wait'
+
+heterge:
+	$(TIME) './toolkits/bfs $(DATASET) $(SIZE) 71 & \
+	./toolkits/cc $(DATASET) $(SIZE)  & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 102 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 142 & \
+	./toolkits/cc $(DATASET) $(SIZE)  & \
+	./toolkits/pagerank $(DATASET) $(SIZE) 100 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 203 & \
+	wait'
+
+mbfsge:
+	$(TIME) './toolkits/bfs $(DATASET) $(SIZE) 91 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 182 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 273 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 364 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 455 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 546 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 637 & \
+	./toolkits/bfs $(DATASET) $(SIZE) 828 & \
+	wait'
+
+mssspge:
+	$(TIME) './toolkits/sssp $(DATASETW) $(SIZE) 211 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 422 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 633 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 844 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 1055 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 1266 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 1477 & \
+	./toolkits/sssp $(DATASETW) $(SIZE) 1688 & \
+	wait'
 
 gendata:
 	python utils/converter.py ../Dataset/cit-Patents

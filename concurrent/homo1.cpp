@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     std::thread ccThreads[4];
     for (int i = 0; i < 4; ++i)
     {
-        bfsThreads[i] = std::thread(computeBFS, graph, 10*i, 2*i);
+        bfsThreads[i] = std::thread(computeBFS, graph, 10*(i+1), 2*i);
         ccThreads[i] = std::thread(computeCC, graph, 2*i+1);
     }
 

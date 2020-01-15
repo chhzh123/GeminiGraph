@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 
     std::thread myThreads[8];
     for (int i = 0; i < 8; ++i) {
-        myThreads[i] = std::thread(compute, graph, 10 * i, i);
+        myThreads[i] = std::thread(compute, graph, 91 * (i+1), i);
     }
 
     for (int i = 0; i < 8; ++i) {

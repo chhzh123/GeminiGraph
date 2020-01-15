@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     std::thread ssspThreads[4];
     for (int i = 0; i < 4; ++i)
     {
-        ssspThreads[i] = std::thread(computeSSSP, graph, 10 * i + 2, 2 * i + 1);
+        ssspThreads[i] = std::thread(computeSSSP, graph, 71 * (i+1) + 2, 2 * i + 1);
         prThreads[i] = std::thread(computePR, graph, 2 * i);
     }
 
