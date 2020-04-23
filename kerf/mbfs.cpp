@@ -20,31 +20,22 @@ Copyright (c) 2014-2015 Xiaowei Zhu, Tsinghua University
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "core/graph.hpp"
+#include "M-BFS.pb.h"
+using namespace MBFS;
 
-class VecVertexId
-{
-public:
-    VecVertexId() = default;
-    VecVertexId(const VertexId val)
-    {
-        for (int i = 0; i < 8; ++i)
-            vertex_id[i] = val;
-    }
-    VecVertexId(const VecVertexId &other)
-    {
-        for (int i = 0; i < 8; ++i)
-            vertex_id[i] = other.vertex_id[i];
-    }
-    VertexId vertex_id[8] = {0};
-};
+#include "core/graph.hpp"
 
 void compute(Graph<Empty> *graph)
 {
     double exec_time = 0;
     exec_time -= get_time();
 
-    VertexId *parent[8];
+    PropertyManager prop(graph->vertices);
+    BFS_Prop::Parents *parent[8];
+    for (int i = 0; i < 8; ++i)
+        parent[i] = prop.add_Parents();
+    prop.initialize();
+
     VertexSubset *active_in[8];
     VertexSubset *active_out[8];
     VertexId active_vertices = 8;
@@ -54,14 +45,12 @@ void compute(Graph<Empty> *graph)
 
     for (int i = 0; i < 8; ++i)
     {
-        parent[i] = graph->alloc_vertex_array<VertexId>();
         active_in[i] = graph->alloc_vertex_subset();
         active_out[i] = graph->alloc_vertex_subset();
 
         active_in[i]->clear();
         active_in[i]->set_bit(root[i]);
-        graph->fill_vertex_array(parent[i], graph->vertices); // -1
-        parent[i][root[i]] = root[i];
+        parent[i]->set(root[i],root[i]);
 
         common_active_in->set_bit(root[i]);
     }
@@ -85,16 +74,17 @@ void compute(Graph<Empty> *graph)
         for (int i = 0; i < 8; ++i)
             active_out[i]->clear();
         common_active_out->clear();
-        active_vertices = graph->process_edges<VertexId, VecVertexId>(
+        active_vertices = graph->process_edges<VertexId, PropertyMessage>(
             [&](VertexId src) {
-                VecVertexId vecId(graph->vertices);
+                PropertyMessage msg;
+                for (int i = 0; i < 8; ++i)
+                    msg.data[i] = UINT_MAX;
                 for (int i = 0; i < 8; ++i)
                     if (active_in[i]->get_bit(src))
-                        vecId.vertex_id[i] = src;
-                // VecVertexId vecId(src);
-                graph->emit(src, vecId);
+                        msg.data[i] = src;
+                graph->emit(src, msg);
             },
-            [&](VertexId src, VecVertexId msg, VertexAdjList<Empty> outgoing_adj) {
+            [&](VertexId src, PropertyMessage msg, VertexAdjList<Empty> outgoing_adj) {
                 VertexId activated = 0;
                 for (AdjUnit<Empty> *ptr = outgoing_adj.begin; ptr != outgoing_adj.end; ptr++)
                 {
@@ -102,7 +92,7 @@ void compute(Graph<Empty> *graph)
                     bool flag = false;
                     for (int i = 0; i < 8; ++i)
                     {
-                        if (active_in[i]->get_bit(src) && parent[i][dst] == graph->vertices && cas(&parent[i][dst], graph->vertices, msg.vertex_id[i])) // be careful!
+                        if (msg.data[i] != UINT_MAX && parent[i]->get(dst) == UINT_MAX && cas(parent[i]->get_addr(dst), UINT_MAX, msg.data[i])) // be careful!
                         {
                             active_out[i]->set_bit(dst);
                             flag = true;
@@ -119,43 +109,43 @@ void compute(Graph<Empty> *graph)
             [&](VertexId dst, VertexAdjList<Empty> incoming_adj) {
                 // advanced task filter
                 // int bit_mask = 0;
-                bool bit_mask[8] = {0};
-                int cnt = 0;
+                // bool bit_mask[8] = {0};
+                // int cnt = 0;
+                // for (int i = 0; i < 8; ++i)
+                // {
+                //     if (parent[i]->get(dst) != UINT_MAX) //(visited[i]->get_bit(dst))
+                //     {
+                //         // return;
+                //         // bit_mask &= 1 << i;
+                //         bit_mask[i] = 1;
+                //         cnt++;
+                //     }
+                // }
+                // if (cnt == 8)
+                //     return; // all visited
+                PropertyMessage vecId;
                 for (int i = 0; i < 8; ++i)
-                {
-                    if (parent[i][dst] != graph->vertices) //(visited[i]->get_bit(dst))
-                    {
-                        // return;
-                        // bit_mask &= 1 << i;
-                        bit_mask[i] = 1;
-                        cnt++;
-                    }
-                }
-                if (cnt == 8)
-                    return; // all visited
-                VecVertexId vecId(graph->vertices);
+                    vecId.data[i] = UINT_MAX;
                 bool flag = false;
                 for (AdjUnit<Empty> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
                 {
                     VertexId src = ptr->neighbour;
                     for (int i = 0; i < 8; ++i)
                     {
-                        if (!bit_mask[i] && active_in[i]->get_bit(src)) // dst not visited & src active
+                        if (active_in[i]->get_bit(src)) // dst not visited & src active
                         {
-                            vecId.vertex_id[i] = src;
-                            bit_mask[i] = 1;
-                            flag = true;
+                            vecId.data[i] = src;
                         }
                     }
                 }
-                if (flag)
+                // if (flag)
                     graph->emit(dst, vecId);
             },
-            [&](VertexId dst, VecVertexId msg) {
+            [&](VertexId dst, PropertyMessage msg) {
                 bool flag = false;
                 for (int i = 0; i < 8; ++i)
                 {
-                    if (cas(&parent[i][dst], graph->vertices, msg.vertex_id[i]))
+                    if (msg.data[i] != UINT_MAX && parent[i]->get(dst) == UINT_MAX && cas(parent[i]->get_addr(dst), UINT_MAX, msg.data[i]))
                     {
                         active_out[i]->set_bit(dst);
                         // return 1;
@@ -184,20 +174,21 @@ void compute(Graph<Empty> *graph)
         printf("exec_time=%lf(s)\n", exec_time);
     }
 
+    PropertyMessage* msg = prop.get_property();
+    graph->gather_vertex_array(msg, 0);
     for (int i = 0; i < 8; ++i)
     {
-        graph->gather_vertex_array(parent[i], 0);
         if (graph->partition_id == 0)
         {
             VertexId found_vertices = 0;
             for (VertexId v_i = 0; v_i < graph->vertices; v_i++)
             {
-                if (parent[i][v_i] < graph->vertices)
+                if (parent[i]->get(v_i) != UINT_MAX)
                 {
                     found_vertices += 1;
                 }
             }
-            printf("found_vertices = %u\n", found_vertices);
+            printf("job %d found_vertices = %u\n", i, found_vertices);
         }
 
         graph->dealloc_vertex_array(parent);
