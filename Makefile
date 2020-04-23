@@ -2,6 +2,7 @@ ROOT_DIR= $(shell pwd)
 TARGETS= toolkits/bc toolkits/bfs toolkits/cc toolkits/pagerank toolkits/sssp
 CON_TARGETS= concurrent/homo1 concurrent/homo2 concurrent/heter concurrent/mbfs concurrent/msssp
 KERF_TARGETS= kerf/homo1 kerf/homo2 kerf/heter kerf/mbfs kerf/msssp
+PAR_TARGETS= parallel/homo1 parallel/homo2 parallel/heter parallel/mbfs parallel/msssp
 MACROS=
 # MACROS= -D PRINT_DEBUG_MESSAGES
 
@@ -48,16 +49,21 @@ DATASET = $(DATASET_PATH)/$(DATA)_J_5_100.in
 DATASETW = $(DATASET_PATH)/$(DATA)_WJ_5_100.in
 endif
 
-all: $(TARGETS) $(CON_TARGETS) $(KERF_TARGETS)
+all: $(TARGETS) $(CON_TARGETS) $(KERF_TARGETS) $(PAR_TARGETS)
 
 concurrent: $(CON_TARGETS)
 
 kerf: $(KERF_TARGETS)
 
+parallel: $(PAR_TARGETS)
+
 toolkits/%: toolkits/%.cpp $(HEADERS)
 	$(MPICXX) $(CXXFLAGS) -o $@ $< $(SYSLIBS)
 
 concurrent/%: concurrent/%.cpp $(HEADERS)
+	$(MPICXX) $(CXXFLAGS) -o $@ $< $(SYSLIBS)
+
+parallel/%: parallel/%.cpp $(HEADERS)
 	$(MPICXX) $(CXXFLAGS) -o $@ $< $(SYSLIBS)
 
 kerf/%: kerf/%.cpp $(HEADERS)
@@ -72,45 +78,45 @@ build:
 
 homo1:
 	$(TIME) "./concurrent/homo1 $(DATASET) $(SIZE)"
-	$(PERF) "./concurrent/homo1 $(DATASET) $(SIZE)"
+	# $(PERF) "./concurrent/homo1 $(DATASET) $(SIZE)"
 
 homo2:
 	$(TIME) "./concurrent/homo2 $(DATASETW) $(SIZE)"
-	$(PERF) "./concurrent/homo2 $(DATASETW) $(SIZE)"
+	# $(PERF) "./concurrent/homo2 $(DATASETW) $(SIZE)"
 
 heter:
 	$(TIME) "./concurrent/heter $(DATASETW) $(SIZE)"
-	$(PERF) "./concurrent/heter $(DATASETW) $(SIZE)"
+	# $(PERF) "./concurrent/heter $(DATASETW) $(SIZE)"
 
 mbfs:
 	$(TIME) "./concurrent/mbfs $(DATASET) $(SIZE)"
-	$(PERF) "./concurrent/mbfs $(DATASET) $(SIZE)"
+	# $(PERF) "./concurrent/mbfs $(DATASET) $(SIZE)"
 
 msssp:
 	$(TIME) "./concurrent/msssp $(DATASETW) $(SIZE)"
-	$(PERF) "./concurrent/msssp $(DATASETW) $(SIZE)"
+	# $(PERF) "./concurrent/msssp $(DATASETW) $(SIZE)"
 
 expkerf: build homo1kerf homo2kerf heterkerf mbfskerf mssspkerf
 
 homo1kerf:
 	$(TIME) "./kerf/homo1 $(DATASET) $(SIZE)"
-	$(PERF) "./kerf/homo1 $(DATASET) $(SIZE)"
+	# $(PERF) "./kerf/homo1 $(DATASET) $(SIZE)"
 
 homo2kerf:
 	$(TIME) "./kerf/homo2 $(DATASETW) $(SIZE)"
-	$(PERF) "./kerf/homo2 $(DATASETW) $(SIZE)"
+	# $(PERF) "./kerf/homo2 $(DATASETW) $(SIZE)"
 
 heterkerf:
 	$(TIME) "./kerf/heter $(DATASETW) $(SIZE)"
-	$(PERF) "./kerf/heter $(DATASETW) $(SIZE)"
+	# $(PERF) "./kerf/heter $(DATASETW) $(SIZE)"
 
 mbfskerf:
 	$(TIME) "./kerf/mbfs $(DATASET) $(SIZE)"
-	$(PERF) "./kerf/mbfs $(DATASET) $(SIZE)"
+	# $(PERF) "./kerf/mbfs $(DATASET) $(SIZE)"
 
 mssspkerf:
 	$(TIME) "./kerf/msssp $(DATASETW) $(SIZE)"
-	$(PERF) "./kerf/msssp $(DATASETW) $(SIZE)"
+	# $(PERF) "./kerf/msssp $(DATASETW) $(SIZE)"
 
 expge: build homo1ge homo2ge heterge mbfsge mssspge
 
