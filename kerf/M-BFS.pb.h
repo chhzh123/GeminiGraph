@@ -57,6 +57,16 @@ private:
 
 class PropertyMessage {
 public:
+  PropertyMessage(uintE val) {
+    for(int i = 0; i < 8; ++i) data[i] = val;
+  }
+  inline uintE operator[] (int i) const { return data[i]; }
+  inline uintE& operator[] (int i) { return data[i]; }
+  inline uintE get (int i) const { return data[i]; }
+  inline uintE& get (int i) { return data[i]; }
+  inline uintE* get_data () { return data; }
+  inline void set (int i, uintE val) { data[i] = val; }
+private:
   uintE data[8];
 };
 
@@ -73,7 +83,7 @@ public:
     //  BFS_Prop::Parents
     int arr_BFS_Parents_size = arr_BFS_Parents.size();
     int arr_BFS_Parents_all_size = n * arr_BFS_Parents_size;
-    arr_BFS_Parents_all = (uint*) malloc(sizeof(uint) * arr_BFS_Parents_all_size);
+    arr_BFS_Parents_all = (uintE*) malloc(sizeof(uintE) * arr_BFS_Parents_all_size);
     parallel_for (int i = 0; i < arr_BFS_Parents_all_size; ++i) {
       arr_BFS_Parents_all[i] = UINT_MAX;
     }

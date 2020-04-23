@@ -50,7 +50,7 @@ void compute(Graph<Empty> *graph)
 
         active_in[i]->clear();
         active_in[i]->set_bit(root[i]);
-        parent[i]->set(root[i],root[i]);
+        parent[i]->set(root[i], root[i]);
 
         common_active_in->set_bit(root[i]);
     }
@@ -76,12 +76,10 @@ void compute(Graph<Empty> *graph)
         common_active_out->clear();
         active_vertices = graph->process_edges<VertexId, PropertyMessage>(
             [&](VertexId src) {
-                PropertyMessage msg;
-                for (int i = 0; i < 8; ++i)
-                    msg.data[i] = UINT_MAX;
+                PropertyMessage msg(UINT_MAX);
                 for (int i = 0; i < 8; ++i)
                     if (active_in[i]->get_bit(src))
-                        msg.data[i] = src;
+                        msg[i] = src;
                 graph->emit(src, msg);
             },
             [&](VertexId src, PropertyMessage msg, VertexAdjList<Empty> outgoing_adj) {
@@ -92,7 +90,7 @@ void compute(Graph<Empty> *graph)
                     bool flag = false;
                     for (int i = 0; i < 8; ++i)
                     {
-                        if (msg.data[i] != UINT_MAX && parent[i]->get(dst) == UINT_MAX && cas(parent[i]->get_addr(dst), UINT_MAX, msg.data[i])) // be careful!
+                        if (msg[i] != UINT_MAX && parent[i]->get(dst) == UINT_MAX && cas(parent[i]->get_addr(dst), UINT_MAX, msg[i])) // be careful!
                         {
                             active_out[i]->set_bit(dst);
                             flag = true;
@@ -107,48 +105,24 @@ void compute(Graph<Empty> *graph)
                 return activated;
             },
             [&](VertexId dst, VertexAdjList<Empty> incoming_adj) {
-                // advanced task filter
-                // int bit_mask = 0;
-                // bool bit_mask[8] = {0};
-                // int cnt = 0;
-                // for (int i = 0; i < 8; ++i)
-                // {
-                //     if (parent[i]->get(dst) != UINT_MAX) //(visited[i]->get_bit(dst))
-                //     {
-                //         // return;
-                //         // bit_mask &= 1 << i;
-                //         bit_mask[i] = 1;
-                //         cnt++;
-                //     }
-                // }
-                // if (cnt == 8)
-                //     return; // all visited
-                PropertyMessage vecId;
-                for (int i = 0; i < 8; ++i)
-                    vecId.data[i] = UINT_MAX;
+                PropertyMessage msg(UINT_MAX);
                 bool flag = false;
                 for (AdjUnit<Empty> *ptr = incoming_adj.begin; ptr != incoming_adj.end; ptr++)
                 {
                     VertexId src = ptr->neighbour;
                     for (int i = 0; i < 8; ++i)
-                    {
                         if (active_in[i]->get_bit(src)) // dst not visited & src active
-                        {
-                            vecId.data[i] = src;
-                        }
-                    }
+                            msg[i] = src;
                 }
-                // if (flag)
-                    graph->emit(dst, vecId);
+                graph->emit(dst, msg);
             },
             [&](VertexId dst, PropertyMessage msg) {
                 bool flag = false;
                 for (int i = 0; i < 8; ++i)
                 {
-                    if (msg.data[i] != UINT_MAX && parent[i]->get(dst) == UINT_MAX && cas(parent[i]->get_addr(dst), UINT_MAX, msg.data[i]))
+                    if (msg[i] != UINT_MAX && parent[i]->get(dst) == UINT_MAX && cas(parent[i]->get_addr(dst), UINT_MAX, msg[i]))
                     {
                         active_out[i]->set_bit(dst);
-                        // return 1;
                         flag = true;
                     }
                 }
@@ -174,7 +148,7 @@ void compute(Graph<Empty> *graph)
         printf("exec_time=%lf(s)\n", exec_time);
     }
 
-    PropertyMessage* msg = prop.get_property();
+    PropertyMessage *msg = prop.get_property();
     graph->gather_vertex_array(msg, 0);
     for (int i = 0; i < 8; ++i)
     {
